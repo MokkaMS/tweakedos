@@ -45,3 +45,4 @@ vcpkg_installed
 *.dylib
 *.so
 *.bundle
+.gradle/
