@@ -651,7 +651,7 @@ int parseArguments(const std::vector<std::string>& argv) {
                 for (int i = 0; i < SDL_GetNumRenderDrivers(); i++) {
                     SDL_RendererInfo rendererInfo;
                     SDL_GetRenderDriverInfo(i, &rendererInfo);
-                    printf(" %s\n", rendererInfo.name, i);
+                    printf(" %s\n", rendererInfo.name);
                 }
                 return 0;
             } else {

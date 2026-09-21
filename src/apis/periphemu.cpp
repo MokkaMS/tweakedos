@@ -103,7 +103,7 @@ peripheral* attachPeripheral(Computer * computer, const std::string& side, const
     else {
         //fprintf(stderr, "not found: %s\n", type.c_str());
         if (errorReturn != NULL) *errorReturn = "No peripheral named " + type;
-        return NULL;
+        va_end(arg); return NULL;
     }
     computer->peripherals_mutex.lock();
     try { computer->peripherals[side] = p; } catch (...) {}
