@@ -1,6 +1,6 @@
 {
     "name": "craftos-pc",
-    "version-string": "v2.8",
+    "version-string": "v2.8.4",
     "description": "Advanced ComputerCraft emulator",
     "dependencies": [
         "sdl2",
