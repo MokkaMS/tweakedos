@@ -220,10 +220,10 @@ static void sendRawData(const uint8_t type, const uint8_t id, const std::functio
     if (type != CCPC_RAW_FEATURE_FLAGS && (RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_BINARY_CHECKSUM)) chk.update(output.str());
     else chk.update(str);
     const uint32_t sum = chk.checksum();
-    char tmpdata[21];
+    char tmpdata[25];
     if (str.length() > 65535) {
         if (isVersion1_1) {
-            snprintf(tmpdata, 21, "%012zX%08x", str.length(), sum);
+            snprintf(tmpdata, 25, "%012zX%08x", str.length(), sum);
             rawWriter("!CPD" + std::string(tmpdata, 12) + str + std::string(tmpdata + 12, 8) + "\n");
         } else fprintf(stderr, "Attempted to send raw packet that's too large to a client that doesn't support large packets (%zu bytes); dropping packet.", str.length());
     } else {

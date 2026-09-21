@@ -91,7 +91,10 @@ static int peripheral_hasType(lua_State *L) {
 
 void peripheral_update(Computer *comp) {
     std::lock_guard<std::mutex> lock(comp->peripherals_mutex);
+    #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     for (auto p : comp->peripherals) p.second->update();
+#pragma GCC diagnostic pop
 }
 
 static luaL_Reg peripheral_reg[] = {

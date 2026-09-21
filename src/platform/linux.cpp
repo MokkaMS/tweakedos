@@ -408,14 +408,14 @@ static void data_source_handle_send(void *data, struct wl_data_source *source, c
         SDL_SaveBMP_RW(temp, rw, false);
         size = SDL_RWtell(rw);
         SDL_RWclose(rw);
-        write(fd, data, size);
+        if (write(fd, data, size) < 0) { perror("write"); }
         delete[] data;
 #ifndef NO_WEBP
     } else if (strcmp(mime_type, "image/webp") == 0) {
 		uint8_t * data = NULL;
         size_t size = WebPEncodeLosslessRGB((uint8_t*)temp->pixels, temp->w, temp->h, temp->pitch, &data);
         if (size) {
-            write(fd, data, size);
+            if (write(fd, data, size) < 0) { perror("write"); }
             WebPFree(data);
         }
 #endif
@@ -429,7 +429,7 @@ static void data_source_handle_send(void *data, struct wl_data_source *source, c
         std::stringstream out;
         img.write_stream(out);
         std::string data = out.str();
-        write(fd, data.c_str(), data.size());
+        if (write(fd, data.c_str(), data.size()) < 0) { perror("write"); }
 #endif
 	} else {
 		fprintf(stderr,

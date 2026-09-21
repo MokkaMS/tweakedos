@@ -30,7 +30,7 @@ struct http_data_t {
     char** headers;
 };
 
-struct http_param_t {
+struct http_emscripten_param_t {
     Computer *comp;
     std::string url;
     std::string postData;
@@ -258,7 +258,7 @@ void* checkThread(void* arg) {
 #ifdef __APPLE__
     pthread_setname_np("HTTP Check Thread");
 #endif
-    http_param_t * param = (http_param_t*)arg;
+    http_emscripten_param_t * param = (http_emscripten_param_t*)arg;
     std::string status;
     if (param->url.find(':') == std::string::npos) status = "Must specify http or https";
     else if (param->url.find("://") == std::string::npos) status = "URL malformed";
@@ -279,7 +279,7 @@ int http_checkURL(lua_State *L) {
         return 1;
     }
     luaL_checkstring(L, 1);
-    http_param_t * param = new http_param_t;
+    http_emscripten_param_t * param = new http_emscripten_param_t;
     param->comp = get_comp(L);
     param->url = tostring(L, 1);
     std::thread th(checkThread, param);
