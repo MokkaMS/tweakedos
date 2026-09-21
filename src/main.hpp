@@ -17,6 +17,15 @@
 #include <Terminal.hpp>
 #include "platform.hpp"
 
+#ifdef _WIN32
+#ifndef strcasecmp
+#define strcasecmp _stricmp
+#endif
+#ifndef strncasecmp
+#define strncasecmp _strnicmp
+#endif
+#endif
+
 extern bool rawClient;
 extern std::string overrideHardwareDriver;
 extern std::map<uint8_t, Terminal*> rawClientTerminals;
