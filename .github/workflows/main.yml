@@ -193,8 +193,8 @@ jobs:
         $tag = git rev-parse --short HEAD
         Set-Item ENV:ExternalCompilerOptions /DCRAFTOSPC_COMMIT='\"'$tag'\" '/DCRASHREPORT_API_KEY
         [System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String($Env:APIKEY)) | Out-File -Encoding "UTF8" src\apikey.cpp
-        msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC
-        msbuild "CraftOS-PC 2.sln" /p:Configuration=Release
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=ReleaseC /p:Platform=x64 /p:VcpkgEnableManifest=true
+        msbuild "CraftOS-PC 2.sln" /p:Configuration=Release /p:Platform=x64 /p:VcpkgEnableManifest=true
         copy x64\Release\CraftOS-PC.exe CraftOS-PC.exe
         copy x64\Release\CraftOS-PC.pdb CraftOS-PC.pdb
         copy x64\ReleaseC\CraftOS-PC.exe CraftOS-PC_console.exe
@@ -239,7 +239,7 @@ jobs:
     - name: Restore vcpkg cache
       uses: lukka/run-vcpkg@v11
       with:
-        vcpkgGitCommitId: 1b4a65242adfd65a82b1d1a6f31f1accdfe09af9
+        vcpkgGitCommitId: baf57686c0ec86cbf2e4c055ea09cee710280cc6
     - name: Set up binary cache
       uses: actions/cache@v4.3.0
       with:
