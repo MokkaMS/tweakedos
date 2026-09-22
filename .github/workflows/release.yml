@@ -70,18 +70,6 @@ jobs:
         $env:GITHUB_REF -match "[0-9\.]+"
         $VERSION=$matches[0]
         & "C:\Program Files (x86)\Inno Setup 6\iscc" /DMyAppVersion=$VERSION /DWorkspaceDir=$env:GITHUB_WORKSPACE $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\CraftOS-PC.iss
-    - name: Build delta installer
-      env:
-        TAG_NAME: ${{ github.event.release.tag_name }}
-      run: |
-        $env:GITHUB_REF -match "[0-9\.]+"
-        $VERSION=$matches[0]
-        $delta_version=Get-Content "$env:GITHUB_WORKSPACE\craftos2-release-resources\windows\dll\version.txt"
-        chcp 65001
-        echo ("DELTA_VERSION=" + $delta_version) >> $env:GITHUB_ENV
-        if ( "$env:TAG_NAME" -ne $delta_version ) {
-          & "C:\Program Files (x86)\Inno Setup 6\iscc" /DMyAppVersion=$VERSION /DWorkspaceDir=$env:GITHUB_WORKSPACE /DDeltaVersion=$delta_version $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\CraftOS-PC-Delta.iss
-        }
     - name: Build portable package
       run: |
         echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\bios.lua $env:GITHUB_WORKSPACE\bin\bios.lua /Q /K /Y
@@ -110,21 +98,6 @@ jobs:
         upload_url: ${{ github.event.release.upload_url }}
         asset_path: ${{ github.workspace }}\CraftOS-PC-Setup.exe
         asset_name: CraftOS-PC-Setup.exe
-        asset_content_type: application/vnd.microsoft.portable-executable
-    - name: Check if delta was built
-      id: check_files
-      uses: andstor/file-existence-action@v2.0.0
-      with:
-        files: "${{ github.workspace }}\\CraftOS-PC-Setup_Delta-${{ env.DELTA_VERSION }}.exe"
-    - name: Upload delta installer
-      if: steps.check_files.outputs.files_exists == 'true'
-      uses: shogo82148/actions-upload-release-asset@v1.6.3
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ${{ github.workspace }}\CraftOS-PC-Setup_Delta-${{ env.DELTA_VERSION }}.exe
-        asset_name: CraftOS-PC-Setup_Delta-${{ env.DELTA_VERSION }}.exe
         asset_content_type: application/vnd.microsoft.portable-executable
     - name: Upload portable archive
       uses: shogo82148/actions-upload-release-asset@v1.6.3
