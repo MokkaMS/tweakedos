@@ -319,7 +319,8 @@ testEnd()
 
 testStart "http"
 	local handle = call("get", "https://httpbin.org/base64/SGVsbG8gV29ybGQhCkFub3RoZXIgbGluZS4KVGhpcyBkYXRhIHdvcmtzIHByb3Blcmx5LgoocmVzdCBvZiBkYXRhKQ==")
-	if testLocal("handle", type(handle), "table") then
+	if type(handle) == "table" then
+		testLocal("handle", type(handle), "table")
 		testLocal("handle.getResponseCode", callLocal("handle.getResponseCode", handle.getResponseCode), 200)
 		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine), 'Hello World!')
 		testLocal("handle.readLine", callLocal("handle.readLine", handle.readLine, true), 'Another line.\n')
