@@ -90,7 +90,9 @@ jobs:
         } else {
             $VERSION = "2.8.4"
         }
-        & "C:\Program Files (x86)\Inno Setup 6\iscc" /DMyAppVersion=$VERSION /DWorkspaceDir=$env:GITHUB_WORKSPACE $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\CraftOS-PC.iss
+        $issPath = "$env:GITHUB_WORKSPACE\craftos2-release-resources\windows\CraftOS-PC.iss"
+        (Get-Content $issPath) | Where-Object { $_ -notmatch 'ccemux-arm64\.dll' -and $_ -notmatch 'dll-arm' } | Set-Content $issPath
+        & "C:\Program Files (x86)\Inno Setup 6\iscc" /DMyAppVersion=$VERSION /DWorkspaceDir=$env:GITHUB_WORKSPACE $issPath
     - name: Build portable package
       run: |
         echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\bios.lua $env:GITHUB_WORKSPACE\bin\bios.lua /Q /K /Y
