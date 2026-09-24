@@ -297,6 +297,8 @@ jobs:
         copy ARM64\ReleaseC\CraftOS-PC.pdb CraftOS-PC_console.pdb
         copy craftos2-lua\src\lua52.dll lua52.dll
         copy craftos2-lua\src\lua52.pdb lua52.pdb
+        if (Test-Path "vcpkg_installed\arm64-windows\bin") { copy vcpkg_installed\arm64-windows\bin\*.dll . }
+        if (Test-Path "ARM64\Release") { copy ARM64\Release\*.dll . }
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
@@ -304,7 +306,7 @@ jobs:
         path: |
           CraftOS-PC.exe
           CraftOS-PC_console.exe
-          lua52.dll
+          *.dll
     - name: Upload artifact symbols
       uses: actions/upload-artifact@v4
       with:
