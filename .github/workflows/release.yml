@@ -161,11 +161,30 @@ jobs:
       with:
         java-version: '11'
         distribution: 'temurin'
+    - name: Download native libraries and assets
+      run: |
+        if [ ! -d resources/android-project/app/src/main/jniLibs ] || [ -z "$(ls -A resources/android-project/app/src/main/jniLibs 2>/dev/null)" ]; then
+          echo "Fetching prebuilt native libraries and assets..."
+          curl -sL -o /tmp/upstream.apk "https://github.com/MCJack123/craftos2/releases/download/v2.8.3/CraftOS-PC.apk"
+          mkdir -p resources/android-project/app/src/main/jniLibs
+          mkdir -p resources/android-project/app/src/main/assets
+          unzip -q /tmp/upstream.apk "lib/*" -d /tmp/apk_extracted
+          unzip -q /tmp/upstream.apk "assets/*" -d /tmp/apk_extracted
+          cp -r /tmp/apk_extracted/lib/* resources/android-project/app/src/main/jniLibs/
+          cp -r /tmp/apk_extracted/assets/* resources/android-project/app/src/main/assets/
+          rm -rf /tmp/upstream.apk /tmp/apk_extracted
+        fi
+        git clone https://github.com/MCJack123/craftos2-rom /tmp/rom
+        mkdir -p resources/android-project/app/src/main/assets/lua
+        cp -r /tmp/rom/rom resources/android-project/app/src/main/assets/lua/
+        cp /tmp/rom/bios.lua resources/android-project/app/src/main/assets/lua/bios.lua
+        cp /tmp/rom/hdfont.bmp resources/android-project/app/src/main/assets/lua/hdfont.bmp
+        rm -rf /tmp/rom
     - name: Build Android APK
       run: |
         cd resources/android-project
         chmod +x gradlew
-        ./gradlew assembleRelease
+        ./gradlew clean assembleRelease
         cd ../..
         if [ -f resources/android-project/app/build/outputs/apk/release/app-release.apk ]; then
           cp resources/android-project/app/build/outputs/apk/release/app-release.apk CraftOS.apk

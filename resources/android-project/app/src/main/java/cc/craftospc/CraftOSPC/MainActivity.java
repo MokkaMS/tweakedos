@@ -68,6 +68,9 @@ public class MainActivity extends SDLActivity implements MultiFingerTapGestureDe
             } catch (Exception ignored) {}
         } else System.out.println("Already extracted ROM for this build; skipping.");
         super.onCreate(savedInstanceState);
+        if (mBrokenLibraries || mLayout == null) {
+            return;
+        }
         setContentView(R.layout.activity_main);
         ((ConstraintLayout)findViewById(R.id.rootview)).addView(mLayout, 0);
         gesturesManager = new AndroidGesturesManager(getBaseContext());
