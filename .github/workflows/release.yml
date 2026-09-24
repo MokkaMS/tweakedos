@@ -62,7 +62,7 @@ jobs:
     - name: Download ROM
       run: git clone https://github.com/MCJack123/craftos2-rom $env:GITHUB_WORKSPACE\craftos2-rom
     - name: Download resources
-      run: git clone https://github.com/MCJack123/craftos2-release-resources $env:GITHUB_WORKSPACE\craftos2-release-resources
+      run: git clone -c core.protectNTFS=false https://github.com/MCJack123/craftos2-release-resources $env:GITHUB_WORKSPACE\craftos2-release-resources
     - name: Download built executables
       uses: dawidd6/action-download-artifact@v6
       with:
@@ -107,7 +107,7 @@ jobs:
         echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\hdfont.bmp $env:GITHUB_WORKSPACE\bin-arm\hdfont.bmp /Q /K /Y
         echo D | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\rom $env:GITHUB_WORKSPACE\bin-arm\rom /E /Q /K /Y
         echo D | xcopy $env:GITHUB_WORKSPACE\craftos2-rom\debug $env:GITHUB_WORKSPACE\bin-arm\debug /E /Q /K /Y
-        xcopy $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\dll-arm\* $env:GITHUB_WORKSPACE\bin-arm\ /Q /K /Y
+        if (Test-Path "$env:GITHUB_WORKSPACE\craftos2-release-resources\windows\dll-arm") { xcopy $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\dll-arm\* $env:GITHUB_WORKSPACE\bin-arm\ /Q /K /Y }
         echo F | xcopy $env:GITHUB_WORKSPACE\craftos2-release-resources\windows\LICENSE.txt $env:GITHUB_WORKSPACE\bin-arm\LICENSE.txt /Q /K /Y
         cd $env:GITHUB_WORKSPACE\bin-arm
         Compress-Archive -Path * -DestinationPath ..\CraftOS-PC-Portable-WinARM64.zip
@@ -153,7 +153,7 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      uses: android-actions/setup-android@v4
     - name: Set up JDK 11 for Gradle
       uses: actions/setup-java@v4
       with:
