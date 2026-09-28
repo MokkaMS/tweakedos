@@ -517,14 +517,14 @@ bool HardwareSDLTerminal::pollEvents() {
             if (e.type == SDL_MOUSEBUTTONDOWN && e.button.y < tabBarH) {
                 TabBar::handleMouseDown(e.button.x, e.button.y, winW, dpi);
                 if (renderTarget != renderTargets.end() && *renderTarget != NULL) (*renderTarget)->changed = true;
-                continue;
+                return false;
             } else if (e.type == SDL_MOUSEBUTTONUP && e.button.y < tabBarH) {
-                continue;
-            } else if (e.type == SDL_MOUSEMOTION && e.motion.y < tabBarH) {
+                return false;
+            } else if (e.type == SDL_MOUSEMOTION) {
                 bool needRedraw = false;
-                TabBar::handleMouseMove(e.motion.x, e.motion.y, winW, dpi, needRedraw);
+                bool inTabBar = TabBar::handleMouseMove(e.motion.x, e.motion.y, winW, dpi, needRedraw);
                 if (needRedraw && renderTarget != renderTargets.end() && *renderTarget != NULL) (*renderTarget)->changed = true;
-                continue;
+                if (inTabBar) return false;
             } else if (e.type == SDL_MOUSEWHEEL) {
                 int mx, my;
                 SDL_GetMouseState(&mx, &my);
@@ -532,26 +532,26 @@ bool HardwareSDLTerminal::pollEvents() {
                     TabBar::scrollOffset -= (e.wheel.x * 20 + e.wheel.y * 20);
                     if (TabBar::scrollOffset < 0) TabBar::scrollOffset = 0;
                     if (renderTarget != renderTargets.end() && *renderTarget != NULL) (*renderTarget)->changed = true;
-                    continue;
+                    return false;
                 }
             } else if (e.type == SDL_KEYDOWN) {
                 if (e.key.keysym.sym == SDLK_PAGEDOWN && (e.key.keysym.mod & KMOD_SYSMOD)) {
                     nextRenderTarget();
-                    continue;
+                    return false;
                 } else if (e.key.keysym.sym == SDLK_PAGEUP && (e.key.keysym.mod & KMOD_SYSMOD)) {
                     previousRenderTarget();
-                    continue;
+                    return false;
                 } else if (e.key.keysym.sym >= SDLK_1 && e.key.keysym.sym <= SDLK_9 && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD)) {
                     selectRenderTargetIndex((size_t)(e.key.keysym.sym - SDLK_1));
-                    continue;
+                    return false;
                 } else if ((e.key.keysym.sym == SDLK_t || e.key.keysym.sym == SDLK_n) && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD)) {
                     TabBar::createNewComputerTab();
-                    continue;
+                    return false;
                 } else if (e.key.keysym.sym == SDLK_w && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD)) {
                     if (renderTarget != renderTargets.end() && *renderTarget != NULL) {
                         TabBar::closeTerminalScreen(*renderTarget);
                     }
-                    continue;
+                    return false;
                 }
             }
         }
