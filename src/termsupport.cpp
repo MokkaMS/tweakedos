@@ -284,7 +284,7 @@ std::set<unsigned> currentWindowIDs;
 #if defined(__EMSCRIPTEN__) || defined(__IPHONEOS__) || defined(__ANDROID__)
 bool singleWindowMode = true;
 #else
-bool singleWindowMode = false;
+bool singleWindowMode = true;
 #endif
 
 int convertX(SDLTerminal * term, int x) {
@@ -301,6 +301,8 @@ int convertX(SDLTerminal * term, int x) {
 }
 
 int convertY(SDLTerminal * term, int x) {
+    if (singleWindowMode && term != NULL) x -= term->getTabBarHeight();
+    if (x < 0) x = 0;
     if (term->mode != 0) {
         if ((unsigned)x < 2 * term->dpiScale * (int)term->charScale) return 0;
         else if ((unsigned)x >= term->charHeight * term->dpiScale * term->height + 2 * term->charScale * term->dpiScale)

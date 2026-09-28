@@ -72,4 +72,41 @@ inline std::list<Terminal*>::iterator& previousRenderTarget() {
     return renderTarget;
 }
 
+inline bool selectRenderTarget(Terminal * term) {
+    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
+        if (*it == term) {
+            renderTarget = it;
+            (*renderTarget)->changed = true;
+            (*renderTarget)->onActivate();
+            return true;
+        }
+    }
+    return false;
+}
+
+inline bool selectRenderTarget(unsigned id) {
+    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
+        if ((*it)->id == id) {
+            renderTarget = it;
+            (*renderTarget)->changed = true;
+            (*renderTarget)->onActivate();
+            return true;
+        }
+    }
+    return false;
+}
+
+inline bool selectRenderTargetIndex(size_t index) {
+    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    if (index >= renderTargets.size()) return false;
+    auto it = renderTargets.begin();
+    std::advance(it, index);
+    renderTarget = it;
+    (*renderTarget)->changed = true;
+    (*renderTarget)->onActivate();
+    return true;
+}
+
 #endif

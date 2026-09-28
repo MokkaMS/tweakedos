@@ -12,6 +12,7 @@
 #include <configuration.hpp>
 #include "HardwareSDLTerminal.hpp"
 #include "RawTerminal.hpp"
+#include "TabBar.hpp"
 #include "../gif.hpp"
 #include "../main.hpp"
 #include "../runtime.hpp"
@@ -133,9 +134,10 @@ extern bool operator!=(Color lhs, Color rhs);
 
 bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
+    int topOffset = singleWindowMode ? getTabBarHeight() : 0;
     SDL_Rect destrect = {
         (int)(x * charWidth * dpiScale + 2 * charScale * dpiScale), 
-        (int)(y * charHeight * dpiScale + 2 * charScale * dpiScale), 
+        (int)(y * charHeight * dpiScale + 2 * charScale * dpiScale + topOffset), 
         (int)(fontWidth * charScale * dpiScale), 
         (int)(fontHeight * charScale * dpiScale)
     };
@@ -146,7 +148,7 @@ bool HardwareSDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Colo
         if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * dpiScale);
         if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * dpiScale);
         if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale));
-        if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale));
+        if ((unsigned)y == height - 1) bgdestrect.h += (realHeight - topOffset) - (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale));
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
@@ -217,7 +219,11 @@ void HardwareSDLTerminal::render() {
         changed = false;
     }
     std::lock_guard<std::mutex> rlock(renderlock);
+    int topOffset = singleWindowMode ? getTabBarHeight() : 0;
+    int ww = realWidth, wh = realHeight;
+    SDL_GetWindowSize(win, &ww, &wh);
     Color bgcolor = newmode == 0 ? newpalette[15] : defaultPalette[15];
+    SDL_Rect termBgRect = {0, topOffset, ww, wh - topOffset};
     if (SDL_SetRenderDrawColor(ren, bgcolor.r, bgcolor.g, bgcolor.b, 0xFF) != 0) return;
     if (SDL_RenderClear(ren) != 0) return;
     SDL_Rect rect;
@@ -234,7 +240,7 @@ void HardwareSDLTerminal::render() {
             }
         }
         SDL_UnlockTexture(pixtex);
-        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (int)(2 * newcharScale * dpiScale), (int)(2 * newcharScale * dpiScale), (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)));
+        SDL_RenderCopy(ren, pixtex, NULL, setRect(&rect, (int)(2 * newcharScale * dpiScale), (int)(2 * newcharScale * dpiScale + topOffset), (int)(newwidth * newcharWidth * dpiScale), (int)(newheight * newcharHeight * dpiScale)));
     } else {
         for (unsigned y = 0; y < newheight; y++) {
             for (unsigned x = 0; x < newwidth; x++) {
@@ -244,6 +250,9 @@ void HardwareSDLTerminal::render() {
         }
         if (gotResizeEvent) return;
         if (newblink && newblinkX >= 0 && newblinkY >= 0 && (unsigned)newblinkX < newwidth && (unsigned)newblinkY < newheight) if (!drawChar('_', newblinkX, newblinkY, newpalette[newcursorColor], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
+    }
+    if (singleWindowMode) {
+        TabBar::renderHardware(ren, font, ww, dpiScale);
     }
     currentFPS++;
     if (lastSecond != time(0)) {
@@ -380,7 +389,7 @@ bool HardwareSDLTerminal::resize(unsigned w, unsigned h) {
         newWidth = w;
         newHeight = h;
         // not really a fan of having two tasks queued here, but there's not a whole lot we can do
-        if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth+(4 * charScale * dpiScale)), (int)(h*charHeight+(4 * charScale * dpiScale))); return NULL;}, NULL);
+        if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth+(4 * charScale * dpiScale)), (int)(h*charHeight+(4 * charScale * dpiScale) + (singleWindowMode ? getTabBarHeight() : 0))); return NULL;}, NULL);
         {
             std::lock_guard<std::mutex> lock2(renderlock);
             SDL_GetWindowSize(win, &realWidth, &realHeight);
@@ -492,6 +501,58 @@ bool HardwareSDLTerminal::pollEvents() {
             case SDL_DROPBEGIN: case SDL_DROPCOMPLETE: case SDL_DROPFILE: case SDL_DROPTEXT:
                 e.drop.windowID = (*renderTarget)->id;
                 break;
+            }
+
+            int tabBarH = TabBar::getTabBarHeight(1);
+            int winW = 0, winH = 0;
+            if (singleWin != NULL) SDL_GetWindowSize(singleWin, &winW, &winH);
+            int dpi = 1;
+            if (renderTarget != renderTargets.end() && *renderTarget != NULL) {
+                SDLTerminal * st = dynamic_cast<SDLTerminal*>(*renderTarget);
+                if (st != NULL) {
+                    tabBarH = st->getTabBarHeight();
+                    dpi = st->dpiScale;
+                }
+            }
+            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.y < tabBarH) {
+                TabBar::handleMouseDown(e.button.x, e.button.y, winW, dpi);
+                if (renderTarget != renderTargets.end() && *renderTarget != NULL) (*renderTarget)->changed = true;
+                continue;
+            } else if (e.type == SDL_MOUSEBUTTONUP && e.button.y < tabBarH) {
+                continue;
+            } else if (e.type == SDL_MOUSEMOTION && e.motion.y < tabBarH) {
+                bool needRedraw = false;
+                TabBar::handleMouseMove(e.motion.x, e.motion.y, winW, dpi, needRedraw);
+                if (needRedraw && renderTarget != renderTargets.end() && *renderTarget != NULL) (*renderTarget)->changed = true;
+                continue;
+            } else if (e.type == SDL_MOUSEWHEEL) {
+                int mx, my;
+                SDL_GetMouseState(&mx, &my);
+                if (my < tabBarH) {
+                    TabBar::scrollOffset -= (e.wheel.x * 20 + e.wheel.y * 20);
+                    if (TabBar::scrollOffset < 0) TabBar::scrollOffset = 0;
+                    if (renderTarget != renderTargets.end() && *renderTarget != NULL) (*renderTarget)->changed = true;
+                    continue;
+                }
+            } else if (e.type == SDL_KEYDOWN) {
+                if (e.key.keysym.sym == SDLK_PAGEDOWN && (e.key.keysym.mod & KMOD_SYSMOD)) {
+                    nextRenderTarget();
+                    continue;
+                } else if (e.key.keysym.sym == SDLK_PAGEUP && (e.key.keysym.mod & KMOD_SYSMOD)) {
+                    previousRenderTarget();
+                    continue;
+                } else if (e.key.keysym.sym >= SDLK_1 && e.key.keysym.sym <= SDLK_9 && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD)) {
+                    selectRenderTargetIndex((size_t)(e.key.keysym.sym - SDLK_1));
+                    continue;
+                } else if ((e.key.keysym.sym == SDLK_t || e.key.keysym.sym == SDLK_n) && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD)) {
+                    TabBar::createNewComputerTab();
+                    continue;
+                } else if (e.key.keysym.sym == SDLK_w && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD)) {
+                    if (renderTarget != renderTargets.end() && *renderTarget != NULL) {
+                        TabBar::closeTerminalScreen(*renderTarget);
+                    }
+                    continue;
+                }
             }
         }
         if (e.type == task_event_type) pumpTaskQueue();

@@ -660,6 +660,7 @@
     <ClInclude Include="src\terminal\HardwareSDLTerminal.hpp" />
     <ClInclude Include="src\terminal\RawTerminal.hpp" />
     <ClInclude Include="src\terminal\SDLTerminal.hpp" />
+    <ClInclude Include="src\terminal\TabBar.hpp" />
     <ClInclude Include="src\terminal\TRoRTerminal.hpp" />
     <ClInclude Include="src\util.hpp" />
   </ItemGroup>
@@ -780,6 +781,7 @@
     <ClCompile Include="src\terminal\HardwareSDLTerminal.cpp" />
     <ClCompile Include="src\terminal\RawTerminal.cpp" />
     <ClCompile Include="src\terminal\SDLTerminal.cpp" />
+    <ClCompile Include="src\terminal\TabBar.cpp" />
     <ClCompile Include="src\terminal\TRoRTerminal.cpp" />
   </ItemGroup>
   <ItemGroup>

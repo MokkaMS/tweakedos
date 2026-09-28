@@ -84,6 +84,7 @@ public:
     void setLabel(std::string label) override;
     void onActivate() override;
     virtual bool resizeWholeWindow(int w, int h);
+    int getTabBarHeight() const;
 
     SDL_Window *win;
     static SDL_Window *singleWin;

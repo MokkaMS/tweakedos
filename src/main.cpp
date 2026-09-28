@@ -600,7 +600,8 @@ int parseArguments(const std::vector<std::string>& argv) {
         else if (arg.substr(0, 16) == "--raw-websocket=") { rawClient = true; rawWebSocketURL = arg.substr(16); }
         else if (arg == "--tror") { selectedRenderer = 4; checkTTY(); }
         else if (arg == "--hardware-sdl" || arg == "--hardware") selectedRenderer = 5;
-        else if (arg == "--single") singleWindowMode = true;
+        else if (arg == "--single" || arg == "--tabbed" || arg == "--tabs") singleWindowMode = true;
+        else if (arg == "--multi" || arg == "--no-single" || arg == "--no-tabs") singleWindowMode = false;
         else if (arg == "--script") script_file = argv[++i];
         else if (arg.substr(0, 9) == "--script=") script_file = arg.substr(9);
         else if (arg == "--exec") script_file = "\x1b" + argv[++i];

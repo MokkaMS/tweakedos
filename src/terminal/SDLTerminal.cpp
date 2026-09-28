@@ -13,10 +13,15 @@
 #include <configuration.hpp>
 #include "RawTerminal.hpp"
 #include "SDLTerminal.hpp"
+#include "TabBar.hpp"
 #include "../gif.hpp"
 #include "../main.hpp"
 #include "../runtime.hpp"
 #include "../termsupport.hpp"
+
+int SDLTerminal::getTabBarHeight() const {
+    return singleWindowMode ? TabBar::getTabBarHeight(dpiScale) : 0;
+}
 #ifndef NO_WEBP
 #include <webp/mux.h>
 #include <webp/encode.h>
@@ -115,7 +120,8 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
 
     if (singleWindowMode && singleWin != NULL) win = singleWin;
     else {
-        win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale)), SDL_WINDOW_SHOWN | 
+        int extraH = singleWindowMode ? getTabBarHeight() : 0;
+        win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale) + extraH), SDL_WINDOW_SHOWN | 
 #if !(defined(__EMSCRIPTEN__) && defined(NO_EMSCRIPTEN_HIDPI))
             SDL_WINDOW_ALLOW_HIGHDPI |
 #endif
@@ -142,13 +148,13 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
 #if defined(__ANDROID__) || defined(__IPHONEOS__)
         SDL_GetWindowSize(win, &realWidth, &realHeight);
         width = (realWidth - 4*charScale*dpiScale) / (charWidth*dpiScale);
-        height = (realHeight - 4*charScale*dpiScale) / (charHeight*dpiScale);
+        height = (realHeight - extraH - 4*charScale*dpiScale) / (charHeight*dpiScale);
         this->screen.resize(width, height, ' ');
         this->colors.resize(width, height, 0xF0);
         this->pixels.resize(width * fontWidth, height * fontHeight, 0x0F);
 #else
         realWidth = (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale));
-        realHeight = (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale));
+        realHeight = (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale) + extraH);
 #endif
 #ifdef __IPHONEOS__
         SDL_AddTimer(100, textInputTimer, this);
@@ -231,9 +237,10 @@ bool operator!=(Color lhs, Color rhs) {
 
 bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bool transparent) {
     SDL_Rect srcrect = getCharacterRect(c);
+    int topOffset = singleWindowMode ? getTabBarHeight() : 0;
     SDL_Rect destrect = {
         (int)(x * charWidth * dpiScale + 2 * charScale * dpiScale), 
-        (int)(y * charHeight * dpiScale + 2 * charScale * dpiScale), 
+        (int)(y * charHeight * dpiScale + 2 * charScale * dpiScale + topOffset), 
         (int)(fontWidth * charScale * dpiScale), 
         (int)(fontHeight * charScale * dpiScale)
     };
@@ -244,7 +251,7 @@ bool SDLTerminal::drawChar(unsigned char c, int x, int y, Color fg, Color bg, bo
         if (x == 0 || (unsigned)x == width - 1) bgdestrect.w += (int)(2 * charScale * dpiScale);
         if (y == 0 || (unsigned)y == height - 1) bgdestrect.h += (int)(2 * charScale * dpiScale);
         if ((unsigned)x == width - 1) bgdestrect.w += realWidth - (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale));
-        if ((unsigned)y == height - 1) bgdestrect.h += realHeight - (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale));
+        if ((unsigned)y == height - 1) bgdestrect.h += (realHeight - topOffset) - (int)(height*charHeight*dpiScale+(4 * charScale * dpiScale));
     }
     if (!transparent && bg != palette[15]) {
         if (gotResizeEvent) return false;
@@ -317,14 +324,16 @@ void SDLTerminal::render() {
         return;
     }
     SDL_Rect rect;
-    if (gotResizeEvent || SDL_FillRect(surf, NULL, newmode == 0 ? rgb(newpalette[15]) : rgb(defaultPalette[15])) != 0) return;
+    int topOffset = singleWindowMode ? getTabBarHeight() : 0;
+    SDL_Rect termBgRect = {0, topOffset, ww, wh - topOffset};
+    if (gotResizeEvent || SDL_FillRect(surf, &termBgRect, newmode == 0 ? rgb(newpalette[15]) : rgb(defaultPalette[15])) != 0) return;
     if (newmode != 0) {
         for (unsigned y = 0; y < newheight * newcharHeight * dpiScale; y+=newcharScale * dpiScale) {
             for (unsigned x = 0; x < newwidth * newcharWidth * dpiScale; x+=newcharScale * dpiScale) {
                 unsigned char c = (*newpixels)[y / newcharScale / dpiScale][x / newcharScale / dpiScale];
                 if (gotResizeEvent) return;
                 if (SDL_FillRect(surf, setRect(&rect, (int)(x + 2 * newcharScale * dpiScale),
-                                               (int)(y + 2 * newcharScale * dpiScale),
+                                               (int)(y + 2 * newcharScale * dpiScale + topOffset),
                                                (int)newcharScale * dpiScale,
                                                (int)newcharScale * dpiScale),
                                  rgb(newpalette[(int)c])) != 0) return;
@@ -335,6 +344,9 @@ void SDLTerminal::render() {
             if (gotResizeEvent || !drawChar((*newscreen)[y][x], (int)x, (int)y, newpalette[(*newcolors)[y][x] & 0x0F], newpalette[(*newcolors)[y][x] >> 4])) return;
         if (gotResizeEvent) return;
         if (newblink && newblinkX >= 0 && newblinkY >= 0 && (unsigned)newblinkX < newwidth && (unsigned)newblinkY < newheight) if (!drawChar('_', newblinkX, newblinkY, newpalette[newcursorColor], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
+    }
+    if (singleWindowMode) {
+        TabBar::renderSoftware(surf, useOrigFont ? origfont : bmp, ww, dpiScale);
     }
     currentFPS++;
     if (lastSecond != time(0)) {
@@ -468,7 +480,7 @@ bool SDLTerminal::resize(unsigned w, unsigned h) {
         newWidth = w;
         newHeight = h;
 #ifndef __IPHONEOS__
-        if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * dpiScale))); return NULL;}, NULL);
+        if (config.snapToSize && !fullscreen && !(SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED)) queueTask([this, w, h](void*)->void*{SDL_SetWindowSize((SDL_Window*)win, (int)(w*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(h*charHeight*dpiScale+(4 * charScale * dpiScale) + (singleWindowMode ? getTabBarHeight() : 0))); return NULL;}, NULL);
 #endif
         SDL_GetWindowSize(win, &realWidth, &realHeight);
         gotResizeEvent = (newWidth != width || newHeight != height);
@@ -487,7 +499,7 @@ bool SDLTerminal::resize(unsigned w, unsigned h) {
 bool SDLTerminal::resizeWholeWindow(int w, int h) {
     const bool r = resize(w, h);
     if (!r) return r;
-    queueTask([this](void*)->void*{SDL_SetWindowSize(win, (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale*dpiScale))); return NULL;}, NULL);
+    queueTask([this](void*)->void*{SDL_SetWindowSize(win, (int)(width*charWidth*dpiScale+(4 * charScale * dpiScale)), (int)(height*charHeight*dpiScale+(4 * charScale*dpiScale) + (singleWindowMode ? getTabBarHeight() : 0))); return NULL;}, NULL);
     return r;
 }
 
@@ -683,6 +695,58 @@ bool SDLTerminal::pollEvents() {
             case SDL_DROPBEGIN: case SDL_DROPCOMPLETE: case SDL_DROPFILE: case SDL_DROPTEXT:
                 e.drop.windowID = (*renderTarget)->id;
                 break;
+            }
+
+            int tabBarH = TabBar::getTabBarHeight(1);
+            int winW = 0, winH = 0;
+            if (singleWin != NULL) SDL_GetWindowSize(singleWin, &winW, &winH);
+            int dpi = 1;
+            if (renderTarget != renderTargets.end() && *renderTarget != NULL) {
+                SDLTerminal * st = dynamic_cast<SDLTerminal*>(*renderTarget);
+                if (st != NULL) {
+                    tabBarH = st->getTabBarHeight();
+                    dpi = st->dpiScale;
+                }
+            }
+            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.y < tabBarH) {
+                TabBar::handleMouseDown(e.button.x, e.button.y, winW, dpi);
+                if (renderTarget != renderTargets.end() && *renderTarget != NULL) (*renderTarget)->changed = true;
+                continue;
+            } else if (e.type == SDL_MOUSEBUTTONUP && e.button.y < tabBarH) {
+                continue;
+            } else if (e.type == SDL_MOUSEMOTION && e.motion.y < tabBarH) {
+                bool needRedraw = false;
+                TabBar::handleMouseMove(e.motion.x, e.motion.y, winW, dpi, needRedraw);
+                if (needRedraw && renderTarget != renderTargets.end() && *renderTarget != NULL) (*renderTarget)->changed = true;
+                continue;
+            } else if (e.type == SDL_MOUSEWHEEL) {
+                int mx, my;
+                SDL_GetMouseState(&mx, &my);
+                if (my < tabBarH) {
+                    TabBar::scrollOffset -= (e.wheel.x * 20 + e.wheel.y * 20);
+                    if (TabBar::scrollOffset < 0) TabBar::scrollOffset = 0;
+                    if (renderTarget != renderTargets.end() && *renderTarget != NULL) (*renderTarget)->changed = true;
+                    continue;
+                }
+            } else if (e.type == SDL_KEYDOWN) {
+                if (e.key.keysym.sym == SDLK_PAGEDOWN && (e.key.keysym.mod & KMOD_SYSMOD)) {
+                    nextRenderTarget();
+                    continue;
+                } else if (e.key.keysym.sym == SDLK_PAGEUP && (e.key.keysym.mod & KMOD_SYSMOD)) {
+                    previousRenderTarget();
+                    continue;
+                } else if (e.key.keysym.sym >= SDLK_1 && e.key.keysym.sym <= SDLK_9 && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD)) {
+                    selectRenderTargetIndex((size_t)(e.key.keysym.sym - SDLK_1));
+                    continue;
+                } else if ((e.key.keysym.sym == SDLK_t || e.key.keysym.sym == SDLK_n) && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD)) {
+                    TabBar::createNewComputerTab();
+                    continue;
+                } else if (e.key.keysym.sym == SDLK_w && (e.key.keysym.mod & KMOD_ALT) && (e.key.keysym.mod & KMOD_SYSMOD)) {
+                    if (renderTarget != renderTargets.end() && *renderTarget != NULL) {
+                        TabBar::closeTerminalScreen(*renderTarget);
+                    }
+                    continue;
+                }
             }
         }
         if (e.type == task_event_type) pumpTaskQueue();
