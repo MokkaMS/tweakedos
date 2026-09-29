@@ -278,7 +278,7 @@ std::vector<TerminalFactory *> terminalFactories = {
 Uint32 task_event_type;
 Uint32 render_event_type;
 std::list<Terminal*> renderTargets;
-std::mutex renderTargetsLock;
+std::recursive_mutex renderTargetsLock;
 std::list<Terminal*>::iterator renderTarget = renderTargets.end();
 std::set<unsigned> currentWindowIDs;
 #if defined(__EMSCRIPTEN__) || defined(__IPHONEOS__) || defined(__ANDROID__)
@@ -624,7 +624,7 @@ void termRenderLoop() {
         #endif
         bool errored = false;
         {
-            std::lock_guard<std::mutex> lock(renderTargetsLock);
+            std::lock_guard<std::recursive_mutex> lock(renderTargetsLock);
             if (singleWindowMode) {if (renderTarget != renderTargets.end() && renderTerminal(*renderTarget, pushEvent)) {errored = true; break;}}
             else for (Terminal* term : renderTargets) if (renderTerminal(term, pushEvent)) {errored = true; break;}
         }

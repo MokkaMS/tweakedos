@@ -97,7 +97,7 @@ debug_adapter::debug_adapter(lua_State *L, const char * side): debugger(L, side)
 #endif
     }
     server.start();
-    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    std::lock_guard<std::recursive_mutex> lock(renderTargetsLock);
     if (singleWindowMode) {
         const auto pos = currentWindowIDs.find(monitor->term->id);
         if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);

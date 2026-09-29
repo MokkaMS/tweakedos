@@ -69,7 +69,7 @@ std::vector<TabBarItem> TabBar::computeTabs(int winW, int dpiScale) {
     std::vector<TabBarItem> items;
     if (dpiScale < 1) dpiScale = 1;
 
-    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    std::lock_guard<std::recursive_mutex> lock(renderTargetsLock);
     if (renderTargets.empty()) return items;
 
     int totalDesired = 0;

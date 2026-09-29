@@ -25,6 +25,8 @@
 #define KMOD_SYSMOD KMOD_CTRL
 #endif
 
+#include <mutex>
+
 extern std::thread * renderThread;
 extern std::unordered_set<Terminal*> orphanedTerminals;
 extern std::atomic_bool taskQueueReady;
@@ -35,7 +37,7 @@ extern Uint32 task_event_type;
 extern Uint32 render_event_type;
 extern bool singleWindowMode;
 extern std::list<Terminal*> renderTargets;
-extern std::mutex renderTargetsLock;
+extern std::recursive_mutex renderTargetsLock;
 extern std::list<Terminal*>::iterator renderTarget;
 extern std::set<unsigned> currentWindowIDs;
 extern std::vector<TerminalFactory *> terminalFactories;
@@ -56,7 +58,7 @@ inline bool checkWindowID(Computer * c, unsigned wid) {
 }
 
 inline std::list<Terminal*>::iterator& nextRenderTarget() {
-    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    std::lock_guard<std::recursive_mutex> lock(renderTargetsLock);
     if (++renderTarget == renderTargets.end()) renderTarget = renderTargets.begin();
     (*renderTarget)->changed = true;
     (*renderTarget)->onActivate();
@@ -64,7 +66,7 @@ inline std::list<Terminal*>::iterator& nextRenderTarget() {
 }
 
 inline std::list<Terminal*>::iterator& previousRenderTarget() {
-    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    std::lock_guard<std::recursive_mutex> lock(renderTargetsLock);
     if (renderTarget == renderTargets.begin()) renderTarget = renderTargets.end();
     --renderTarget;
     (*renderTarget)->changed = true;
@@ -73,7 +75,7 @@ inline std::list<Terminal*>::iterator& previousRenderTarget() {
 }
 
 inline bool selectRenderTarget(Terminal * term) {
-    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    std::lock_guard<std::recursive_mutex> lock(renderTargetsLock);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == term) {
             renderTarget = it;
@@ -86,7 +88,7 @@ inline bool selectRenderTarget(Terminal * term) {
 }
 
 inline bool selectRenderTarget(unsigned id) {
-    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    std::lock_guard<std::recursive_mutex> lock(renderTargetsLock);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if ((*it)->id == id) {
             renderTarget = it;
@@ -99,7 +101,7 @@ inline bool selectRenderTarget(unsigned id) {
 }
 
 inline bool selectRenderTargetIndex(size_t index) {
-    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    std::lock_guard<std::recursive_mutex> lock(renderTargetsLock);
     if (index >= renderTargets.size()) return false;
     auto it = renderTargets.begin();
     std::advance(it, index);

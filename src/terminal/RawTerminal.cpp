@@ -627,7 +627,7 @@ static void rawInputLoop() {
                     if (RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_HAS_EXTENDED_FEATURES) out.write((char*)&RawTerminal::supportedExtendedFeatures, 4);
                 });
                 if (RawTerminal::supportedFeatures & CCPC_RAW_FEATURE_FLAG_SEND_ALL_WINDOWS) {
-                    std::lock_guard<std::mutex> rlock(renderTargetsLock);
+                    std::lock_guard<std::recursive_mutex> rlock(renderTargetsLock);
                     for (Terminal * t : renderTargets) {
                         RawTerminal * term = dynamic_cast<RawTerminal*>(t);
                         if (term != NULL) {
@@ -1022,7 +1022,7 @@ RawTerminal::RawTerminal(std::string title, uint8_t cid) : Terminal(config.defau
         output.write(title.c_str(), title.size());
         output.put(0);
     });
-    std::lock_guard<std::mutex> rlock(renderTargetsLock);
+    std::lock_guard<std::recursive_mutex> rlock(renderTargetsLock);
     renderTargets.push_back(this);
     renderTarget = --renderTargets.end();
     onActivate();
@@ -1036,7 +1036,7 @@ RawTerminal::~RawTerminal() {
     const auto pos = currentWindowIDs.find(id);
     if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
     if (singleWindowMode && *renderTarget == this) previousRenderTarget();
-    std::lock_guard<std::mutex> rtlock(renderTargetsLock);
+    std::lock_guard<std::recursive_mutex> rtlock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)

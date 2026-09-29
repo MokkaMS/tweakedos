@@ -175,7 +175,7 @@ SDLTerminal::SDLTerminal(std::string title): Terminal(config.defaultWidth, confi
     SDL_FreeSurface(icon);
 #endif
     {
-        std::lock_guard<std::mutex> lock(renderTargetsLock);
+        std::lock_guard<std::recursive_mutex> lock(renderTargetsLock);
         renderTargets.push_back(this);
         renderTarget = --renderTargets.end();
     }
@@ -193,7 +193,7 @@ SDLTerminal::~SDLTerminal() {
 #endif
     if (singleWindowMode && *renderTarget == this) previousRenderTarget();
     {std::lock_guard<std::mutex> locked_g(renderlock);} {
-        std::lock_guard<std::mutex> lock(renderTargetsLock);
+        std::lock_guard<std::recursive_mutex> lock(renderTargetsLock);
         if (singleWindowMode) {
             const auto pos = currentWindowIDs.find(id);
             if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);

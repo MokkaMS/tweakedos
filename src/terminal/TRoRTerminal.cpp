@@ -162,7 +162,7 @@ TRoRTerminal::~TRoRTerminal() {
     const auto pos = currentWindowIDs.find(id);
     if (pos != currentWindowIDs.end()) currentWindowIDs.erase(pos);
     if (singleWindowMode && *renderTarget == this) previousRenderTarget();
-    std::lock_guard<std::mutex> lock(renderTargetsLock);
+    std::lock_guard<std::recursive_mutex> lock(renderTargetsLock);
     std::lock_guard<std::mutex> locked_g(locked);
     for (auto it = renderTargets.begin(); it != renderTargets.end(); ++it) {
         if (*it == this)
