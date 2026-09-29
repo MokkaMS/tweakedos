@@ -13,7 +13,7 @@
 #include "SDLTerminal.hpp"
 #include "../termsupport.hpp"
 #include "../runtime.hpp"
-#include "../Computer.hpp"
+#include <Computer.hpp>
 #include <algorithm>
 #include <set>
 
