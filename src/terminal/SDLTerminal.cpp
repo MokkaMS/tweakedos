@@ -346,7 +346,7 @@ void SDLTerminal::render() {
         if (newblink && newblinkX >= 0 && newblinkY >= 0 && (unsigned)newblinkX < newwidth && (unsigned)newblinkY < newheight) if (!drawChar('_', newblinkX, newblinkY, newpalette[newcursorColor], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
     }
     if (singleWindowMode) {
-        TabBar::renderSoftware(surf, useOrigFont ? origfont : bmp, ww, dpiScale);
+        TabBar::renderSoftware(this, surf, useOrigFont ? origfont : bmp, ww, dpiScale);
     }
     currentFPS++;
     if (lastSecond != time(0)) {

@@ -27,6 +27,8 @@ struct TabBarItem {
     std::string title;
 };
 
+class SDLTerminal;
+
 class TabBar {
 public:
     static int getTabBarHeight(int dpiScale);
@@ -37,8 +39,8 @@ public:
     static bool handleMouseDown(int x, int y, int winW, int dpiScale);
     static bool handleMouseMove(int x, int y, int winW, int dpiScale, bool &needRedraw);
 
-    static void renderSoftware(SDL_Surface *surf, SDL_Surface *fontSurface, int winW, int dpiScale);
-    static void renderHardware(SDL_Renderer *ren, SDL_Texture *fontTexture, int winW, int dpiScale);
+    static void renderSoftware(SDLTerminal *term, SDL_Surface *surf, SDL_Surface *fontSurface, int winW, int dpiScale);
+    static void renderHardware(SDLTerminal *term, SDL_Renderer *ren, SDL_Texture *fontTexture, int winW, int dpiScale);
 
     static int hoveredTab;
     static int hoveredCloseTab;

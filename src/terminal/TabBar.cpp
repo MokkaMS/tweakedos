@@ -29,14 +29,16 @@ int TabBar::getTabBarHeight(int dpiScale) {
 
 static SDL_Rect getFontCharRect(unsigned char c) {
     SDL_Rect retval;
-    retval.w = 6;
-    retval.h = 9;
-    retval.x = (int)(8 * (c & 0x0F) + 1);
-    retval.y = (int)(11 * (c >> 4) + 1);
+    unsigned scale = SDLTerminal::fontScale;
+    if (scale == 0) scale = 2;
+    retval.w = (int)(Terminal::fontWidth * 2 / scale);
+    retval.h = (int)(Terminal::fontHeight * 2 / scale);
+    retval.x = (int)(((Terminal::fontWidth + 2) * 2 / scale) * (c & 0x0F) + 2 / scale);
+    retval.y = (int)(((Terminal::fontHeight + 2) * 2 / scale) * (c >> 4) + 2 / scale);
     return retval;
 }
 
-static void drawStrSoftware(SDL_Surface* surf, SDL_Surface* font, const std::string& str, int x, int y, Color color, int dpiScale) {
+static void drawStrSoftware(SDLTerminal* term, SDL_Surface* surf, SDL_Surface* font, const std::string& str, int x, int y, Color color, int dpiScale) {
     if (font == NULL || surf == NULL) return;
     SDL_SetSurfaceColorMod(font, color.r, color.g, color.b);
     int curX = x;
@@ -44,21 +46,21 @@ static void drawStrSoftware(SDL_Surface* surf, SDL_Surface* font, const std::str
     int charH = 9 * dpiScale;
     for (char ch : str) {
         if (curX + charW > surf->w) break;
-        SDL_Rect srcrect = getFontCharRect((unsigned char)ch);
+        SDL_Rect srcrect = (term != NULL) ? term->getCharacterRect((unsigned char)ch) : getFontCharRect((unsigned char)ch);
         SDL_Rect destrect = {curX, y, charW, charH};
         SDL_BlitScaled(font, &srcrect, surf, &destrect);
         curX += charW;
     }
 }
 
-static void drawStrHardware(SDL_Renderer* ren, SDL_Texture* font, const std::string& str, int x, int y, Color color, int dpiScale) {
+static void drawStrHardware(SDLTerminal* term, SDL_Renderer* ren, SDL_Texture* font, const std::string& str, int x, int y, Color color, int dpiScale) {
     if (font == NULL || ren == NULL) return;
     SDL_SetTextureColorMod(font, color.r, color.g, color.b);
     int curX = x;
     int charW = 6 * dpiScale;
     int charH = 9 * dpiScale;
     for (char ch : str) {
-        SDL_Rect srcrect = getFontCharRect((unsigned char)ch);
+        SDL_Rect srcrect = (term != NULL) ? term->getCharacterRect((unsigned char)ch) : getFontCharRect((unsigned char)ch);
         SDL_Rect destrect = {curX, y, charW, charH};
         SDL_RenderCopy(ren, font, &srcrect, &destrect);
         curX += charW;
@@ -241,7 +243,7 @@ bool TabBar::handleMouseMove(int x, int y, int winW, int dpiScale, bool &needRed
     return true;
 }
 
-void TabBar::renderSoftware(SDL_Surface *surf, SDL_Surface *fontSurface, int winW, int dpiScale) {
+void TabBar::renderSoftware(SDLTerminal *term, SDL_Surface *surf, SDL_Surface *fontSurface, int winW, int dpiScale) {
     if (surf == NULL || fontSurface == NULL) return;
     if (dpiScale < 1) dpiScale = 1;
 
@@ -286,9 +288,9 @@ void TabBar::renderSoftware(SDL_Surface *surf, SDL_Surface *fontSurface, int win
         // Terminal/Monitor icon
         bool isMonitor = (tab.title.find("monitor") != std::string::npos || tab.title.find("Monitor") != std::string::npos);
         if (isMonitor) {
-            drawStrSoftware(surf, fontSurface, "[M]", tab.x + 6 * dpiScale, textY, {78, 201, 176}, dpiScale); // Teal/cyan
+            drawStrSoftware(term, surf, fontSurface, "[M]", tab.x + 6 * dpiScale, textY, {78, 201, 176}, dpiScale); // Teal/cyan
         } else {
-            drawStrSoftware(surf, fontSurface, ">_", tab.x + 6 * dpiScale, textY, {220, 182, 122}, dpiScale); // Amber/gold
+            drawStrSoftware(term, surf, fontSurface, ">_", tab.x + 6 * dpiScale, textY, {220, 182, 122}, dpiScale); // Amber/gold
         }
 
         // Title text
@@ -299,19 +301,38 @@ void TabBar::renderSoftware(SDL_Surface *surf, SDL_Surface *fontSurface, int win
             displayTitle = displayTitle.substr(0, maxChars - 1) + ".";
         }
         Color textColor = tab.isActive ? Color{255, 255, 255} : Color{150, 150, 150};
-        drawStrSoftware(surf, fontSurface, displayTitle, titleX, textY, textColor, dpiScale);
+        drawStrSoftware(term, surf, fontSurface, displayTitle, titleX, textY, textColor, dpiScale);
 
-        // Close button 'x'
+        // Close button 'x' (crisp vector render)
+        int cx = tab.closeX + tab.closeWidth / 2;
+        int cy = h / 2;
+        int r = 3 * dpiScale;
+        int thick = std::max(1, (int)(1.2f * dpiScale));
+
         if (hoveredCloseTab == (int)i) {
-            SDL_Rect closeBg = {tab.closeX - 2 * dpiScale, textY - 2 * dpiScale, tab.closeWidth + 4 * dpiScale, 13 * dpiScale};
+            int btnSize = 14 * dpiScale;
+            SDL_Rect closeBg = {cx - btnSize / 2, cy - btnSize / 2, btnSize, btnSize};
             SDL_FillRect(surf, &closeBg, SDL_MapRGB(surf->format, 69, 69, 69));
-            drawStrSoftware(surf, fontSurface, "x", tab.closeX + 3 * dpiScale, textY, {255, 255, 255}, dpiScale);
-        } else {
-            drawStrSoftware(surf, fontSurface, "x", tab.closeX + 3 * dpiScale, textY, {133, 133, 133}, dpiScale);
+        }
+
+        Color xColor;
+        if (hoveredCloseTab == (int)i) xColor = {255, 255, 255};
+        else if (tab.isActive) xColor = {200, 200, 200};
+        else if (hoveredTab == (int)i) xColor = {180, 180, 180};
+        else xColor = {130, 130, 130};
+
+        Uint32 xPixel = SDL_MapRGB(surf->format, xColor.r, xColor.g, xColor.b);
+        for (int d = -r; d <= r; d++) {
+            for (int t = -thick / 2; t <= thick / 2; t++) {
+                SDL_Rect p1 = {cx + d + t, cy + d, 1, 1};
+                SDL_Rect p2 = {cx + d + t, cy - d, 1, 1};
+                SDL_FillRect(surf, &p1, xPixel);
+                SDL_FillRect(surf, &p2, xPixel);
+            }
         }
     }
 
-    // New Tab '+' button
+    // New Tab '+' button (crisp vector render)
     int plusX = getPlusButtonX(tabs, dpiScale);
     int plusW = getPlusButtonWidth(dpiScale);
     int plusH = h - 6 * dpiScale;
@@ -319,13 +340,22 @@ void TabBar::renderSoftware(SDL_Surface *surf, SDL_Surface *fontSurface, int win
     SDL_Rect plusRect = {plusX, plusY, plusW, plusH};
     if (hoveredPlus) {
         SDL_FillRect(surf, &plusRect, SDL_MapRGB(surf->format, 56, 56, 56));
-        drawStrSoftware(surf, fontSurface, "+", plusX + (plusW - 6 * dpiScale) / 2, textY, {255, 255, 255}, dpiScale);
-    } else {
-        drawStrSoftware(surf, fontSurface, "+", plusX + (plusW - 6 * dpiScale) / 2, textY, {180, 180, 180}, dpiScale);
     }
+
+    int cx = plusX + plusW / 2;
+    int cy = h / 2;
+    int arm = 4 * dpiScale;
+    int thick = std::max(1, (int)(1.5f * dpiScale));
+    Color plusCol = hoveredPlus ? Color{255, 255, 255} : Color{180, 180, 180};
+    Uint32 plusPixel = SDL_MapRGB(surf->format, plusCol.r, plusCol.g, plusCol.b);
+
+    SDL_Rect hbar = {cx - arm, cy - thick / 2, arm * 2 + 1, thick};
+    SDL_FillRect(surf, &hbar, plusPixel);
+    SDL_Rect vbar = {cx - thick / 2, cy - arm, thick, arm * 2 + 1};
+    SDL_FillRect(surf, &vbar, plusPixel);
 }
 
-void TabBar::renderHardware(SDL_Renderer *ren, SDL_Texture *fontTexture, int winW, int dpiScale) {
+void TabBar::renderHardware(SDLTerminal *term, SDL_Renderer *ren, SDL_Texture *fontTexture, int winW, int dpiScale) {
     if (ren == NULL || fontTexture == NULL) return;
     if (dpiScale < 1) dpiScale = 1;
 
@@ -376,9 +406,9 @@ void TabBar::renderHardware(SDL_Renderer *ren, SDL_Texture *fontTexture, int win
         // Terminal/Monitor icon
         bool isMonitor = (tab.title.find("monitor") != std::string::npos || tab.title.find("Monitor") != std::string::npos);
         if (isMonitor) {
-            drawStrHardware(ren, fontTexture, "[M]", tab.x + 6 * dpiScale, textY, {78, 201, 176}, dpiScale);
+            drawStrHardware(term, ren, fontTexture, "[M]", tab.x + 6 * dpiScale, textY, {78, 201, 176}, dpiScale);
         } else {
-            drawStrHardware(ren, fontTexture, ">_", tab.x + 6 * dpiScale, textY, {220, 182, 122}, dpiScale);
+            drawStrHardware(term, ren, fontTexture, ">_", tab.x + 6 * dpiScale, textY, {220, 182, 122}, dpiScale);
         }
 
         // Title text
@@ -389,20 +419,35 @@ void TabBar::renderHardware(SDL_Renderer *ren, SDL_Texture *fontTexture, int win
             displayTitle = displayTitle.substr(0, maxChars - 1) + ".";
         }
         Color textColor = tab.isActive ? Color{255, 255, 255} : Color{150, 150, 150};
-        drawStrHardware(ren, fontTexture, displayTitle, titleX, textY, textColor, dpiScale);
+        drawStrHardware(term, ren, fontTexture, displayTitle, titleX, textY, textColor, dpiScale);
 
-        // Close button 'x'
+        // Close button 'x' (crisp vector render)
+        int cx = tab.closeX + tab.closeWidth / 2;
+        int cy = h / 2;
+        int r = 3 * dpiScale;
+        int thick = std::max(1, (int)(1.2f * dpiScale));
+
         if (hoveredCloseTab == (int)i) {
-            SDL_Rect closeBg = {tab.closeX - 2 * dpiScale, textY - 2 * dpiScale, tab.closeWidth + 4 * dpiScale, 13 * dpiScale};
+            int btnSize = 14 * dpiScale;
+            SDL_Rect closeBg = {cx - btnSize / 2, cy - btnSize / 2, btnSize, btnSize};
             SDL_SetRenderDrawColor(ren, 69, 69, 69, 255);
             SDL_RenderFillRect(ren, &closeBg);
-            drawStrHardware(ren, fontTexture, "x", tab.closeX + 3 * dpiScale, textY, {255, 255, 255}, dpiScale);
-        } else {
-            drawStrHardware(ren, fontTexture, "x", tab.closeX + 3 * dpiScale, textY, {133, 133, 133}, dpiScale);
+        }
+
+        Color xColor;
+        if (hoveredCloseTab == (int)i) xColor = {255, 255, 255};
+        else if (tab.isActive) xColor = {200, 200, 200};
+        else if (hoveredTab == (int)i) xColor = {180, 180, 180};
+        else xColor = {130, 130, 130};
+
+        SDL_SetRenderDrawColor(ren, xColor.r, xColor.g, xColor.b, 255);
+        for (int t = -thick / 2; t <= thick / 2; t++) {
+            SDL_RenderDrawLine(ren, cx - r + t, cy - r, cx + r + t, cy + r);
+            SDL_RenderDrawLine(ren, cx - r + t, cy + r, cx + r + t, cy - r);
         }
     }
 
-    // New Tab '+' button
+    // New Tab '+' button (crisp vector render)
     int plusX = getPlusButtonX(tabs, dpiScale);
     int plusW = getPlusButtonWidth(dpiScale);
     int plusH = h - 6 * dpiScale;
@@ -411,8 +456,17 @@ void TabBar::renderHardware(SDL_Renderer *ren, SDL_Texture *fontTexture, int win
     if (hoveredPlus) {
         SDL_SetRenderDrawColor(ren, 56, 56, 56, 255);
         SDL_RenderFillRect(ren, &plusRect);
-        drawStrHardware(ren, fontTexture, "+", plusX + (plusW - 6 * dpiScale) / 2, textY, {255, 255, 255}, dpiScale);
-    } else {
-        drawStrHardware(ren, fontTexture, "+", plusX + (plusW - 6 * dpiScale) / 2, textY, {180, 180, 180}, dpiScale);
     }
+
+    int cx = plusX + plusW / 2;
+    int cy = h / 2;
+    int arm = 4 * dpiScale;
+    int thick = std::max(1, (int)(1.5f * dpiScale));
+    Color plusCol = hoveredPlus ? Color{255, 255, 255} : Color{180, 180, 180};
+
+    SDL_SetRenderDrawColor(ren, plusCol.r, plusCol.g, plusCol.b, 255);
+    SDL_Rect hbar = {cx - arm, cy - thick / 2, arm * 2 + 1, thick};
+    SDL_RenderFillRect(ren, &hbar);
+    SDL_Rect vbar = {cx - thick / 2, cy - arm, thick, arm * 2 + 1};
+    SDL_RenderFillRect(ren, &vbar);
 }

@@ -252,7 +252,7 @@ void HardwareSDLTerminal::render() {
         if (newblink && newblinkX >= 0 && newblinkY >= 0 && (unsigned)newblinkX < newwidth && (unsigned)newblinkY < newheight) if (!drawChar('_', newblinkX, newblinkY, newpalette[newcursorColor], newpalette[(*newcolors)[newblinkY][newblinkX] >> 4], true)) return;
     }
     if (singleWindowMode) {
-        TabBar::renderHardware(ren, font, ww, dpiScale);
+        TabBar::renderHardware(this, ren, font, ww, dpiScale);
     }
     currentFPS++;
     if (lastSecond != time(0)) {

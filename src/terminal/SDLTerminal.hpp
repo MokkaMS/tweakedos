@@ -32,6 +32,7 @@ class SDLTerminal: public Terminal {
     friend int termPanic(lua_State *L);
     friend int runRenderer(const std::function<std::string()>& read, const std::function<void(const std::string&)>& write);
     friend class HardwareSDLTerminal;
+    friend class TabBar;
 protected:
     bool shouldScreenshot = false;
     bool shouldRecord = false;
@@ -85,6 +86,7 @@ public:
     void onActivate() override;
     virtual bool resizeWholeWindow(int w, int h);
     int getTabBarHeight() const;
+    SDL_Rect getCharacterRect(unsigned char c);
 
     SDL_Window *win;
     static SDL_Window *singleWin;
@@ -96,7 +98,5 @@ protected:
     static SDL_Surface *bmp;
     static SDL_Surface *origfont;
     static Uint32 lastWindow;
-
-    SDL_Rect getCharacterRect(unsigned char c);
 };
 #endif
